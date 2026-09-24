@@ -60,8 +60,8 @@ public final class SkinManagerPatch extends PatchSupport {
         modified |= this.injectSkinManagerConstructors(context);
         // 1.20.1-
         modified |= this.applyIfMatches("[,763],[801,803],[0x40000001,0x4000008E]", "skin-manager.v1", () -> patchLegacySkinManager(context));
-        // 23w42a+ (1.20.3+)
-        modified |= this.applyIfMatches("[765,800],[804,0x40000000],[0x4000009D,]", "skin-manager.v2", () -> patchSkinManagerCacheKey(context));
+        // 23w42a+ (1.20.3+) — убираем верхнее ограничение 800, чтобы захватить 26.3 и выше
+        modified |= this.applyIfMatches("[765,],[804,0x40000000],[0x4000009D,]", "skin-manager.v2", () -> patchSkinManagerCacheKey(context));
         return modified;
     }
 
@@ -89,8 +89,8 @@ public final class SkinManagerPatch extends PatchSupport {
         modified |= this.applyIfMatches("[0x40000107,0x40000108]", "skin-manager.<init>.v4", () -> injectSetSkinCacheDir(
             context, "(" + objectDesc(PATH) + objectDesc(SERVICES) + objectDesc(EXECUTOR) + ")V", 1, objectDesc(PATH)
         ));
-        // 25w35a+ (1.21.9+)
-        modified |= this.applyIfMatches("[773,800],[804,0x40000000],[0x40000109,]", "skin-manager.<init>.v5", () -> injectSetSkinCacheDir(
+        // 25w35a+ (1.21.9+) — открываем диапазон сверху для версии 26.3
+        modified |= this.applyIfMatches("[773,],[804,0x40000000],[0x40000109,]", "skin-manager.<init>.v5", () -> injectSetSkinCacheDir(
             context, "(" + objectDesc(PATH) + objectDesc(SERVICES) + objectDesc(SKIN_TEXTURE_DOWNLOADER) + objectDesc(EXECUTOR) + ")V", 1, objectDesc(PATH)
         ));
         return modified;
