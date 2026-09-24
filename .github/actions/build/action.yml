@@ -39,7 +39,7 @@ runs:
     - name: Build with Gradle
       shell: pwsh
       run: |
-        ./gradlew clean build --info --stacktrace -Pbuild_type=${{ github.event_name }}
+        ./gradlew clean :Bootstrap:build --info --stacktrace -Pbuild_type=${{ github.event_name }}
         ./gradlew --stop
 
     - name: Generate metadata JSONs
