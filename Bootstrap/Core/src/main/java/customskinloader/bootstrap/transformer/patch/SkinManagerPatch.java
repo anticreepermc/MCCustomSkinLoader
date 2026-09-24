@@ -200,21 +200,36 @@ public final class SkinManagerPatch extends PatchSupport {
 
     private boolean patchSkinManagerLoaderLambda(ClassTransformationContext context) {
         boolean modified = false;
-        // 23w31a ~ 23w41a (1.20.2)
+        org.objectweb.asm.tree.ClassNode classNode = context.getCurrentClassNode();
+        
+        if (classNode != null) {
+            String targetClassName = context.remapClassName(SKIN_MANAGER_1);
+            if (classNode.name.equals(targetClassName)) {
+                // Универсальный обход всех лямбда-методов загрузки в SkinManager$1, 
+                // что исключает проблемы с изменением дескрипторов в новых версиях (например, 26.3)
+                for (MethodNode methodNode : classNode.methods) {
+                    if (methodNode.name.startsWith("lambda$load$") || methodNode.name.equals("load")) {
+                        modified |= replaceUnpackTexturesWithFakeSkinCache(context, methodNode);
+                        modified |= replaceGetTexturesWithFakeSkinCache(methodNode);
+                    }
+                }
+            }
+        }
+
+        // Страховка для старых версий через стандартные правила
         modified |= this.applyIfMatches("764,[0x40000090,0x4000009C]", "skin-manager-1.lambda-load-0.v1", () -> {
             MethodNode oldLambda = context.findMethod(SKIN_MANAGER_1, "lambda$load$0", "(" + objectDesc(MINECRAFT_SESSION_SERVICE) + objectDesc(GAME_PROFILE) + ")" + objectDesc(SKIN_MANAGER_TEXTURE_INFO));
             return oldLambda != null && replaceGetTexturesWithFakeSkinCache(oldLambda);
         });
-        // 23w42a ~ 25w33a (1.20.3 ~ 1.21.8)
         modified |= this.applyIfMatches("[765,772],[0x4000009D,0x40000106]", "skin-manager-1.lambda-load-0.v2", () -> {
             MethodNode lambdaWithSession = context.findMethod(SKIN_MANAGER_1, "lambda$load$0", "(" + objectDesc(SKIN_MANAGER_CACHE_KEY) + objectDesc(MINECRAFT_SESSION_SERVICE) + ")" + objectDesc(MINECRAFT_PROFILE_TEXTURES));
             return lambdaWithSession != null && replaceUnpackTexturesWithFakeSkinCache(context, lambdaWithSession);
         });
-        // 25w34a+ (1.21.9+) — диапазон открыт сверху для версии 26.3
         modified |= this.applyIfMatches("[773,],[804,0x40000000],[0x40000107,]", "skin-manager-1.lambda-load-0.v3", () -> {
             MethodNode lambdaWithServices = context.findMethod(SKIN_MANAGER_1, "lambda$load$0", "(" + objectDesc(SKIN_MANAGER_CACHE_KEY) + objectDesc(SERVICES) + ")" + objectDesc(MINECRAFT_PROFILE_TEXTURES));
             return lambdaWithServices != null && replaceUnpackTexturesWithFakeSkinCache(context, lambdaWithServices);
         });
+
         return modified;
     }
 
@@ -477,19 +492,28 @@ public final class SkinManagerPatch extends PatchSupport {
         return modified;
     }
 
-    private boolean replaceGetTexturesWithFakeSkinCache(MethodNode methodNode) {
+    private boolean replaceUnpackTexturesWithFakeSkinCache(ClassTransformationContext context, MethodNode methodNode) {
         boolean modified = false;
+        String desc = context.remapMethodDescriptor("(" + objectDesc(MINECRAFT_SESSION_SERVICE) + objectDesc(PROPERTY) + objectDesc(SKIN_MANAGER_CACHE_KEY) + ")" + objectDesc(OBJECT));
+        String returnType = context.remapClassName(MINECRAFT_PROFILE_TEXTURES);
+
         for (AbstractInsnNode instruction : methodNode.instructions.toArray()) {
             if (!(instruction instanceof MethodInsnNode)) {
                 continue;
             }
 
             MethodInsnNode methodInsnNode = (MethodInsnNode) instruction;
-            if (!MINECRAFT_SESSION_SERVICE.equals(methodInsnNode.owner) || !"getTextures".equals(methodInsnNode.name) || !("(" + objectDesc(GAME_PROFILE) + "Z)" + objectDesc(MAP)).equals(methodInsnNode.desc)) {
+            // Ищем по имени метода unpackTextures, игнорируя незначительные сдвиги дескрипторов владельца в снапшотах
+            if (!"unpackTextures".equals(methodInsnNode.name)) {
                 continue;
             }
 
-            methodNode.instructions.set(instruction, new MethodInsnNode(INVOKESTATIC, FAKE_SKIN_MANAGER, "loadSkinFromCache", "(" + objectDesc(MINECRAFT_SESSION_SERVICE) + objectDesc(GAME_PROFILE) + "Z)" + objectDesc(MAP), false));
+            InsnList replacement = new InsnList();
+            replacement.add(new VarInsnNode(ALOAD, 0));
+            replacement.add(new MethodInsnNode(INVOKESTATIC, FAKE_SKIN_MANAGER, "loadSkinFromCache", desc, false));
+            replacement.add(new TypeInsnNode(CHECKCAST, returnType));
+            methodNode.instructions.insertBefore(instruction, replacement);
+            methodNode.instructions.remove(instruction);
             modified = true;
         }
         return modified;
