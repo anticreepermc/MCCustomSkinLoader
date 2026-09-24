@@ -60,7 +60,7 @@ public final class SkinManagerPatch extends PatchSupport {
         modified |= this.injectSkinManagerConstructors(context);
         // 1.20.1-
         modified |= this.applyIfMatches("[,763],[801,803],[0x40000001,0x4000008E]", "skin-manager.v1", () -> patchLegacySkinManager(context));
-        // 23w42a+ (1.20.3+) — убираем верхнее ограничение 800, чтобы захватить 26.3 и выше
+        // 23w42a+ (1.20.3+)
         modified |= this.applyIfMatches("[765,],[804,0x40000000],[0x4000009D,]", "skin-manager.v2", () -> patchSkinManagerCacheKey(context));
         return modified;
     }
@@ -89,7 +89,7 @@ public final class SkinManagerPatch extends PatchSupport {
         modified |= this.applyIfMatches("[0x40000107,0x40000108]", "skin-manager.<init>.v4", () -> injectSetSkinCacheDir(
             context, "(" + objectDesc(PATH) + objectDesc(SERVICES) + objectDesc(EXECUTOR) + ")V", 1, objectDesc(PATH)
         ));
-        // 25w35a+ (1.21.9+) — открываем диапазон сверху для версии 26.3
+        // 25w35a+ (1.21.9+)
         modified |= this.applyIfMatches("[773,],[804,0x40000000],[0x40000109,]", "skin-manager.<init>.v5", () -> injectSetSkinCacheDir(
             context, "(" + objectDesc(PATH) + objectDesc(SERVICES) + objectDesc(SKIN_TEXTURE_DOWNLOADER) + objectDesc(EXECUTOR) + ")V", 1, objectDesc(PATH)
         ));
@@ -181,7 +181,7 @@ public final class SkinManagerPatch extends PatchSupport {
             return getOrLoad != null && redirectCacheKeyConstruction(context, getOrLoad);
         });
         // 25w34a+ (1.21.9+)
-        modified |= this.applyIfMatches("[773,800],[804,0x40000000],[0x40000107,]", "skin-manager.cache-key.v2", () -> {
+        modified |= this.applyIfMatches("[773,],[804,0x40000000],[0x40000107,]", "skin-manager.cache-key.v2", () -> {
             MethodNode get = context.findMethod(SKIN_MANAGER, "get", "(" + objectDesc(GAME_PROFILE) + ")" + objectDesc(COMPLETABLE_FUTURE));
             return get != null && redirectCacheKeyConstruction(context, get);
         });
@@ -210,8 +210,8 @@ public final class SkinManagerPatch extends PatchSupport {
             MethodNode lambdaWithSession = context.findMethod(SKIN_MANAGER_1, "lambda$load$0", "(" + objectDesc(SKIN_MANAGER_CACHE_KEY) + objectDesc(MINECRAFT_SESSION_SERVICE) + ")" + objectDesc(MINECRAFT_PROFILE_TEXTURES));
             return lambdaWithSession != null && replaceUnpackTexturesWithFakeSkinCache(context, lambdaWithSession);
         });
-        // 25w34a+ (1.21.9+)
-        modified |= this.applyIfMatches("[773,800],[804,0x40000000],[0x40000107,]", "skin-manager-1.lambda-load-0.v3", () -> {
+        // 25w34a+ (1.21.9+) — диапазон открыт сверху для версии 26.3
+        modified |= this.applyIfMatches("[773,],[804,0x40000000],[0x40000107,]", "skin-manager-1.lambda-load-0.v3", () -> {
             MethodNode lambdaWithServices = context.findMethod(SKIN_MANAGER_1, "lambda$load$0", "(" + objectDesc(SKIN_MANAGER_CACHE_KEY) + objectDesc(SERVICES) + ")" + objectDesc(MINECRAFT_PROFILE_TEXTURES));
             return lambdaWithServices != null && replaceUnpackTexturesWithFakeSkinCache(context, lambdaWithServices);
         });
@@ -240,8 +240,8 @@ public final class SkinManagerPatch extends PatchSupport {
         modified |= this.applyIfMatches("[769,772],[0x400000DE,0x40000108]", "skin-manager-texture-cache.skin-texture-downloader.v1", () -> redirectSkinTextureDownloaderToFake(
             context, registerTexture, INVOKESTATIC
         ));
-        // 25w35a+ (1.21.9+)
-        modified |= this.applyIfMatches("[773,800],[804,0x40000000],[0x40000109,]", "skin-manager-texture-cache.skin-texture-downloader.v2", () -> redirectSkinTextureDownloaderToFake(
+        // 25w35a+ (1.21.9+) — диапазон открыт сверху
+        modified |= this.applyIfMatches("[773,],[804,0x40000000],[0x40000109,]", "skin-manager-texture-cache.skin-texture-downloader.v2", () -> redirectSkinTextureDownloaderToFake(
             context, registerTexture, INVOKEVIRTUAL
         ));
         return modified;
